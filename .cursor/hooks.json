@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "sh -lc 'FILE=\"$CURSOR_FILEPATH\"; case \"$FILE\" in */prisma/schema.prisma) echo \"{\\\"agentMessage\\\": \\\"IMPORTANT: You just modified the Prisma schema. You MUST run 'npx prisma migrate dev --name <descriptive-name>' to create a migration, then 'npx prisma generate' to update the TypeScript types. Do NOT forget this step or the app will break.\\\"}\" ;; */apps/backend/src/*.controller.ts) echo \"{\\\"agentMessage\\\": \\\"You modified a controller. Verify: (1) Swagger decorators are present (@ApiTags, @ApiOperation, @ApiResponse), (2) the corresponding service has Prometheus metrics and structured logging, (3) error cases return appropriate HTTP status codes.\\\"}\" ;; esac'"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "sh -lc 'INPUT=$(cat); CMD=$(echo \"$INPUT\" | grep -o '\"command\":\"[^\"]*\"' | head -1 | sed 's/\"command\":\"//;s/\"$//'); case \"$CMD\" in *password*|*secret*|*token*|*API_KEY*) echo \"{\\\"continue\\\": false, \\\"permission\\\": \\\"deny\\\", \\\"userMessage\\\": \\\"Blocked: This command appears to contain or expose a secret.\\\", \\\"agentMessage\\\": \\\"Do not hardcode secrets in commands. Use environment variables from .env instead.\\\"}\" ;; *) echo \"{\\\"continue\\\": true}\" ;; esac'"
+      }
+    ]
+  }
+}

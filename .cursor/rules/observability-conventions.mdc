@@ -1,0 +1,88 @@
+---
+description: "Conventions for metrics, logs, and error tracking in Signal Lab. Apply when adding observability to endpoints, services, or new features."
+globs: ""
+alwaysApply: true
+---
+
+# Observability Conventions
+
+Every endpoint and service in Signal Lab must produce observability signals. This rule defines how.
+
+## Prometheus Metrics
+
+Metrics are exposed via `prom-client` at `GET /metrics` on the backend.
+
+### Naming
+
+- Use `snake_case` for all metric names
+- Prefix domain metrics with the domain name: `scenario_runs_total`, `scenario_run_duration_seconds`
+- Prefix generic HTTP metrics with `http_`: `http_requests_total`
+- Counters MUST end with `_total`
+- Histograms MUST end with `_seconds` (for durations) or `_bytes` (for sizes)
+
+### Labels
+
+- Keep label cardinality low (< 10 unique values per label)
+- Standard labels for scenario metrics: `type` (scenario type), `status` (completed/failed)
+- Standard labels for HTTP metrics: `method`, `path`, `status_code`
+- NEVER use user IDs, request IDs, or timestamps as label values
+
+### Required metrics for any new domain
+
+1. A counter for total operations: `<domain>_<operation>_total`
+2. A histogram for duration: `<domain>_<operation>_duration_seconds`
+
+## Structured Logging
+
+Logs are written as JSON to stdout and collected by Promtail → Loki.
+
+### Format
+
+Every log entry MUST be a JSON object with these fields:
+
+```json
+{
+  "timestamp": "ISO-8601",
+  "level": "info|warn|error|debug",
+  "message": "Human-readable description",
+  "context": "ServiceName",
+  "scenarioType": "success|system_error|...",
+  "scenarioId": "cuid",
+  "duration": 1234,
+  "error": "Error message if applicable"
+}
+```
+
+### Log levels
+
+- `debug`: Internal state, only for development
+- `info`: Successful operations (scenario completed, request served)
+- `warn`: Slow requests (>2s), validation errors, degraded state
+- `error`: Unhandled exceptions, system errors, integration failures
+
+### Rules
+
+- Log at least ONE entry per scenario run
+- Include `scenarioType` and `scenarioId` in every scenario-related log
+- Include `duration` (ms) for any timed operation
+- NEVER log sensitive data (passwords, tokens, PII)
+- NEVER use `console.log` — use NestJS Logger which outputs structured JSON
+
+## Sentry
+
+### When to capture
+
+- `Sentry.captureException(error)` — for unhandled/system errors (5xx)
+- `Sentry.addBreadcrumb(...)` — for validation errors and notable events
+- NEVER capture expected business errors (404 for missing resources) as exceptions
+
+### Context
+
+- Set `extra` with `scenarioType`, `scenarioId` on Sentry scope
+- Set `tags` for filterable dimensions: `scenario_type`, `environment`
+
+## Grafana Dashboard
+
+- Dashboard is provisioned via `monitoring/grafana/dashboards/`
+- Datasources: Prometheus + Loki, provisioned via `monitoring/grafana/provisioning/`
+- Every new metric SHOULD have a corresponding panel or be added to an existing one

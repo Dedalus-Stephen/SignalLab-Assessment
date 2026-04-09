@@ -1,0 +1,41 @@
+{
+  "description": "Marketplace skills to install in Cursor for Signal Lab. Go to Cursor Settings > Skills and search for each skill name, then enable it.",
+  "skills": [
+    {
+      "name": "nextjs-best-practices",
+      "alternatives": ["vercel-react-best-practices", "next-best-practices"],
+      "reason": "Provides App Router conventions, server/client component patterns, and Next.js-specific optimization guidance. Covers areas our custom rules don't: image optimization, metadata, route handlers, caching strategies."
+    },
+    {
+      "name": "shadcn-ui",
+      "alternatives": ["shadcn-ui-components"],
+      "reason": "Up-to-date component API reference and usage patterns for shadcn/ui. Our custom shadcn-form skill covers form-specific patterns, but this covers the full component library — dialogs, data tables, navigation menus, and theming."
+    },
+    {
+      "name": "tailwind-css",
+      "alternatives": ["tailwind-design-system", "tailwind-v4-shadcn"],
+      "reason": "Tailwind utility class reference, responsive design patterns, and CSS variable integration with shadcn themes. Prevents common mistakes like mixing Tailwind with inline styles or custom CSS."
+    },
+    {
+      "name": "nestjs-best-practices",
+      "alternatives": ["nestjs-patterns"],
+      "reason": "NestJS module organization, dependency injection patterns, guards, interceptors, pipes. Our custom nestjs-endpoint skill is specific to Signal Lab scaffold, while this covers the broader NestJS ecosystem."
+    },
+    {
+      "name": "prisma-orm",
+      "alternatives": ["prisma-best-practices"],
+      "reason": "Schema design, migration workflows, query optimization, and relation handling. Complements our prisma-patterns rule which is Signal Lab-specific (our rule says WHAT to do; this skill explains HOW Prisma works)."
+    },
+    {
+      "name": "docker-compose",
+      "alternatives": ["docker-expert", "docker-best-practices"],
+      "reason": "Docker Compose service configuration, multi-stage builds, health checks, volume management, networking. Essential for debugging the observability stack (Prometheus, Loki, Grafana, Promtail containers)."
+    },
+    {
+      "name": "typescript-strict",
+      "alternatives": ["typescript-best-practices"],
+      "reason": "TypeScript strict mode patterns, generics, utility types, discriminated unions. Prevents 'any' usage and ensures type safety across the entire monorepo."
+    }
+  ],
+  "custom_skills_fill_gaps": "Custom skills cover Signal Lab-specific workflows that no marketplace skill addresses: (1) observability skill ties together prom-client + NestJS Logger + Sentry in our specific pattern; (2) nestjs-endpoint skill provides a complete scaffold template matching our project structure; (3) shadcn-form skill wires together RHF + zod + TanStack Query + shadcn in our specific data flow."
+}

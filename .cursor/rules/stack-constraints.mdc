@@ -1,0 +1,48 @@
+---
+description: "Enforces the mandatory technology stack for Signal Lab. Apply when adding dependencies, choosing libraries, or making architectural decisions."
+globs: ""
+alwaysApply: true
+---
+
+# Stack Constraints
+
+Signal Lab uses a fixed stack. Do NOT substitute any of these technologies.
+
+## Frontend (apps/frontend/)
+
+- **Framework**: Next.js with App Router (`app/` directory, NOT `pages/`)
+- **UI components**: shadcn/ui — use `npx shadcn-ui@latest add <component>` to add new ones
+- **Styling**: Tailwind CSS — no CSS modules, no styled-components, no emotion
+- **Server state**: TanStack Query (`@tanstack/react-query`) — NEVER use SWR, axios directly for data fetching, or raw `fetch` in components
+- **Forms**: React Hook Form (`react-hook-form`) with zod resolvers — NEVER use Formik or uncontrolled forms
+- **Client state**: React useState/useReducer for local state. NO Redux, Zustand, Jotai, or MobX
+
+## Backend (apps/backend/)
+
+- **Framework**: NestJS with TypeScript strict mode
+- **ORM**: Prisma — NEVER use TypeORM, Sequelize, Drizzle, or raw SQL queries
+- **Validation**: class-validator + class-transformer for DTOs
+- **API docs**: Swagger via `@nestjs/swagger`
+
+## Database
+
+- PostgreSQL 16 via Prisma. Schema lives in `prisma/schema.prisma`
+
+## Observability
+
+- **Metrics**: prom-client (Prometheus format) exposed at `GET /metrics`
+- **Logging**: Structured JSON to stdout (collected by Promtail → Loki)
+- **Error tracking**: Sentry (`@sentry/nestjs` on backend)
+- **Dashboards**: Grafana with provisioned datasources
+
+## Infrastructure
+
+- Docker Compose — everything runs via `docker compose up -d`
+- No Kubernetes, no Terraform, no cloud-specific services
+
+## Forbidden
+
+- Do NOT add any npm package without checking this list first
+- Do NOT use `any` type in TypeScript
+- Do NOT use default exports (except Next.js pages/layouts which require them)
+- Do NOT store secrets in code — use environment variables via `.env`

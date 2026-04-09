@@ -1,0 +1,84 @@
+---
+description: "Error handling patterns for Signal Lab backend and frontend. Apply when implementing error handling, exception filters, or error UI."
+globs: "apps/**"
+alwaysApply: false
+---
+
+# Error Handling
+
+## Backend (NestJS)
+
+### HTTP Exceptions
+
+- Use NestJS built-in exceptions: `BadRequestException`, `NotFoundException`, `InternalServerErrorException`
+- ALWAYS include a descriptive message: `throw new BadRequestException('Scenario type is required')`
+- NEVER throw raw `Error` objects from controllers — use NestJS exceptions
+- Custom business errors should extend `HttpException`
+
+### Global Exception Filter
+
+- The app has a global exception filter that catches unhandled errors
+- It returns a consistent error shape:
+
+```json
+{
+  "statusCode": 500,
+  "message": "Internal server error",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "path": "/api/scenarios/run"
+}
+```
+
+### Error → Observability Mapping
+
+| Error Type          | HTTP Code | Log Level | Sentry Action         | Metric Label        |
+|---------------------|-----------|-----------|------------------------|---------------------|
+| Validation error    | 400       | warn      | addBreadcrumb          | status="failed"     |
+| Not found           | 404       | warn      | — (no capture)         | —                   |
+| Business logic fail | 422       | warn      | addBreadcrumb          | status="failed"     |
+| System/unhandled    | 500       | error     | captureException       | status="failed"     |
+| Teapot easter egg   | 418       | info      | — (no capture)         | status="completed"  |
+
+### Service Layer
+
+- Services SHOULD catch Prisma errors and throw appropriate NestJS exceptions
+- Services SHOULD log errors with context before re-throwing
+- NEVER swallow errors silently — always log, then throw or handle
+
+```typescript
+// Correct pattern
+try {
+  return await this.prisma.scenarioRun.create({ data });
+} catch (error) {
+  this.logger.error('Failed to create scenario run', { error: error.message, type: dto.type });
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    throw new BadRequestException('Database constraint violation');
+  }
+  throw new InternalServerErrorException('Failed to create scenario run');
+}
+```
+
+## Frontend
+
+### API Error Handling
+
+- TanStack Query's `onError` callback handles API failures
+- Show errors via shadcn/ui `Toast` (sonner) — NEVER use `window.alert()`
+- Display user-friendly messages, not raw error objects
+- For mutations, use the `onError` callback:
+
+```typescript
+const mutation = useMutation({
+  mutationFn: runScenario,
+  onError: (error) => {
+    toast.error(error.message || 'Something went wrong');
+  },
+});
+```
+
+### Loading & Error States
+
+- ALWAYS handle `isLoading`, `isError`, `error` from useQuery
+- Show a spinner or skeleton during loading (use shadcn Skeleton component)
+- Show an error message with a retry option when queries fail
+- NEVER leave components in a broken state — always have fallback UI

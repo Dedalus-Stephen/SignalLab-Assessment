@@ -1,0 +1,94 @@
+---
+description: "Frontend development patterns for Signal Lab. Apply when creating or modifying React components, pages, hooks, or API calls in the frontend app."
+globs: "apps/frontend/**"
+alwaysApply: false
+---
+
+# Frontend Patterns
+
+## Project Structure
+
+```
+apps/frontend/src/
+├── app/                  # Next.js App Router pages and layouts
+│   ├── layout.tsx        # Root layout with providers
+│   ├── page.tsx          # Home page
+│   └── globals.css       # Tailwind directives
+├── components/           # Reusable UI components
+│   └── ui/               # shadcn/ui generated components
+├── lib/                  # Utilities, API client, query keys
+│   ├── api.ts            # Centralized fetch wrapper
+│   └── utils.ts          # shadcn cn() helper
+└── hooks/                # Custom React hooks (if needed)
+```
+
+## Data Fetching — TanStack Query
+
+- ALL server data fetching MUST use TanStack Query hooks
+- Wrap the app in `QueryClientProvider` (done in `app/layout.tsx` or a providers component)
+- Use `useQuery` for GET requests, `useMutation` for POST/PUT/DELETE
+- Define query keys as constants: `queryKeys.scenarios.list`, `queryKeys.scenarios.detail(id)`
+- Invalidate related queries after mutations with `queryClient.invalidateQueries`
+- Use `refetchInterval` or mutation invalidation for real-time updates — NOT manual polling with setInterval
+
+```typescript
+// Correct pattern
+const { data, isLoading } = useQuery({
+  queryKey: ['scenarios', 'list'],
+  queryFn: () => api.get('/api/scenarios'),
+});
+
+const mutation = useMutation({
+  mutationFn: (data: RunScenarioDto) => api.post('/api/scenarios/run', data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['scenarios'] });
+  },
+});
+```
+
+## Forms — React Hook Form
+
+- ALL forms MUST use React Hook Form with `useForm`
+- Use zod schemas for validation with `@hookform/resolvers/zod`
+- Connect form fields to shadcn/ui components via `Controller` or `register`
+- Show validation errors inline using `formState.errors`
+
+```typescript
+const schema = z.object({
+  type: z.enum(['success', 'validation_error', 'system_error', 'slow_request', 'teapot']),
+  name: z.string().optional(),
+});
+
+const form = useForm<z.infer<typeof schema>>({
+  resolver: zodResolver(schema),
+  defaultValues: { type: 'success', name: '' },
+});
+```
+
+## UI Components — shadcn/ui
+
+- Use shadcn/ui components for all UI elements (Button, Card, Select, Badge, Input, Toast, etc.)
+- Import from `@/components/ui/<component>`
+- Use the `cn()` utility for conditional Tailwind classes
+- NEVER install Material UI, Chakra UI, Ant Design, or other component libraries
+
+## Styling — Tailwind CSS
+
+- Use Tailwind utility classes for ALL styling
+- Use shadcn/ui CSS variables (defined in `globals.css`) for theme colors
+- NEVER write inline `style={{}}` attributes
+- NEVER create separate CSS files per component
+
+## Component Guidelines
+
+- Use functional components with TypeScript types
+- One component per file, named export (except Next.js pages which need default export)
+- Put "use client" directive only on components that need browser APIs, hooks, or interactivity
+- Keep components small — extract logic into custom hooks
+- Use loading states (`isLoading`, `isPending`) and error states from TanStack Query
+
+## API Communication
+
+- Backend runs at `http://localhost:3001` (configured via `NEXT_PUBLIC_API_URL`)
+- All API calls go through a centralized `api` utility in `lib/api.ts`
+- NEVER hardcode the backend URL in components

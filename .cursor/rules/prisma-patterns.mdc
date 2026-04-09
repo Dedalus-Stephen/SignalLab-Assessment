@@ -1,0 +1,63 @@
+---
+description: "Prisma ORM patterns and constraints for Signal Lab. Apply when working with database models, queries, migrations, or schema changes."
+globs: "prisma/**,apps/backend/src/**/*.service.ts,apps/backend/src/**/*.repository.ts"
+alwaysApply: false
+---
+
+# Prisma Patterns
+
+## Schema Location
+
+The Prisma schema lives at `prisma/schema.prisma` (project root, NOT inside apps/backend/).
+
+## Model Conventions
+
+- Use `cuid()` for primary keys: `id String @id @default(cuid())`
+- Always include `createdAt DateTime @default(now())`
+- Use `String` for enums stored in DB (not Prisma enums) — keeps migrations simpler
+- Use `Json?` for flexible metadata fields
+- Add `@map` and `@@map` for snake_case table/column names if needed
+
+## Query Patterns
+
+- Access Prisma through a dedicated `PrismaService` (NestJS injectable)
+- NEVER use `prisma.$queryRaw` or `prisma.$executeRaw` — always use the Prisma query builder
+- NEVER use another ORM alongside Prisma
+- Use `select` or `include` to limit fetched fields — avoid fetching entire rows when not needed
+- Use `orderBy: { createdAt: 'desc' }` and `take: 20` for list endpoints (paginate)
+
+## Service Pattern
+
+```typescript
+// Correct: inject PrismaService
+@Injectable()
+export class ScenarioService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findRecent(limit = 20) {
+    return this.prisma.scenarioRun.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+}
+```
+
+## Migrations
+
+- After ANY schema change, run: `npx prisma migrate dev --name descriptive-name`
+- Migration files go in `prisma/migrations/` and MUST be committed
+- NEVER edit existing migration files — create a new migration
+- In Docker, migrations auto-apply via `prisma migrate deploy` at container start
+
+## Type Generation
+
+- After schema changes, types are regenerated via `npx prisma generate`
+- Import types from `@prisma/client` — do NOT create duplicate type definitions
+- The Prisma client is generated inside the backend Docker build step
+
+## Error Handling
+
+- Catch `Prisma.PrismaClientKnownRequestError` for constraint violations
+- Check `error.code` — e.g., `P2002` for unique constraint, `P2025` for not found
+- Map Prisma errors to appropriate HTTP status codes in the service or controller layer
