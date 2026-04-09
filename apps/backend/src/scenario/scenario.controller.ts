@@ -1,8 +1,9 @@
 import { Controller, Post, Get, Body, Query } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ScenarioService } from './scenario.service';
 import { RunScenarioDto } from './scenario.dto';
 
+@ApiTags('scenarios')
 @Controller('scenarios')
 export class ScenarioController {
   constructor(private scenarioService: ScenarioService) {}
@@ -11,6 +12,7 @@ export class ScenarioController {
   @ApiOperation({ summary: 'Run a scenario' })
   @ApiResponse({ status: 200, description: 'Scenario executed successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 418, description: "I'm a teapot" })
   @ApiResponse({ status: 500, description: 'System error' })
   async run(@Body() dto: RunScenarioDto) {
     return this.scenarioService.run(dto);

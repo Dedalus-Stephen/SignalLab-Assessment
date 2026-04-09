@@ -25,16 +25,26 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       SENTRY_DSN: ${SENTRY_DSN}
       BACKEND_PORT: 3001
+      NODE_ENV: production
     volumes:
       - ./apps/backend/src:/app/apps/backend/src
       - ./prisma:/app/prisma
     depends_on:
       postgres:
         condition: service_healthy
+    labels:
+      - "com.docker.compose.project=signal-lab"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
     command: >
-      sh -c "npx prisma migrate deploy --schema=./prisma/schema.prisma &&
-             npx prisma generate --schema=./prisma/schema.prisma &&
-             node apps/backend/dist/main.js"
+      sh -c "cd apps/backend &&
+             npx prisma migrate deploy --schema=/app/prisma/schema.prisma &&
+             npx prisma generate --schema=/app/prisma/schema.prisma &&
+             node dist/main.js"
 
   frontend:
     build:
@@ -43,12 +53,78 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001
     volumes:
       - ./apps/frontend/src:/app/apps/frontend/src
       - ./apps/frontend/public:/app/apps/frontend/public
     depends_on:
       - backend
+    labels:
+      - "com.docker.compose.project=signal-lab"
+
+  # --- Observability Stack ---
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - backend
+    labels:
+      - "com.docker.compose.project=signal-lab"
+
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki:/etc/loki:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    labels:
+      - "com.docker.compose.project=signal-lab"
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./monitoring/promtail:/etc/promtail:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    labels:
+      - "com.docker.compose.project=signal-lab"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3200:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    labels:
+      - "com.docker.compose.project=signal-lab"
 
 volumes:
   pgdata:
+  prometheus_data:
+  loki_data:
+  grafana_data:
